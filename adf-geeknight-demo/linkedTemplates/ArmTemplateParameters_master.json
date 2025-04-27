@@ -1,0 +1,33 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"value": "adf-geeknight-demo"
+		},
+		"ls_adls_storage_accountKey": {
+			"value": ""
+		},
+		"ls_az_sqldb_password": {
+			"value": ""
+		},
+		"ls_adls_storage_properties_typeProperties_url": {
+			"value": "https://dlsgeeknight.dfs.core.windows.net/"
+		},
+		"ls_az_sqldb_properties_typeProperties_server": {
+			"value": "geeknight.database.windows.net"
+		},
+		"ls_az_sqldb_properties_typeProperties_database": {
+			"value": "sqldb-geeknight"
+		},
+		"ls_az_sqldb_properties_typeProperties_userName": {
+			"value": "admin_sa"
+		},
+		"containerUri": {
+			"value": ""
+		},
+		"containerSasToken": {
+			"value": ""
+		}
+	}
+}
