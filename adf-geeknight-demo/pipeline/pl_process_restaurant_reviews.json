@@ -26,7 +26,7 @@
 							},
 							"sinkProcessedRestaurantReviews": {
 								"schema_name": "dbo",
-								"table_name": "sample"
+								"table_name": "RestaurantReviewsProcessed"
 							}
 						}
 					},
