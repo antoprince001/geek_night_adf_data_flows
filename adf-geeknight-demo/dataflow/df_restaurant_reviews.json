@@ -21,7 +21,7 @@
 						"referenceName": "ds_sink_sqldb",
 						"type": "DatasetReference"
 					},
-					"name": "sink1"
+					"name": "sinkProcessedRestaurantReviews"
 				}
 			],
 			"transformations": [
@@ -32,10 +32,10 @@
 					"name": "derivedColumn"
 				},
 				{
-					"name": "filter1"
+					"name": "filterRatingsWithThree"
 				},
 				{
-					"name": "sort1"
+					"name": "sortByRestaurantName"
 				}
 			],
 			"scriptLines": [
@@ -66,10 +66,10 @@
 				"     skipDuplicateMapOutputs: true) ~> selectRequiredColumns",
 				"selectRequiredColumns derive(ReviewLength = length(Review),",
 				"          HasPictures = case(equals(Pictures,0),'No','Yes')) ~> derivedColumn",
-				"derivedColumn filter(Rating != 3) ~> filter1",
-				"filter1 sort(asc(Restaurant, true),",
-				"     caseInsensitive: true) ~> sort1",
-				"sort1 sink(allowSchemaDrift: false,",
+				"derivedColumn filter(Rating != 3) ~> filterRatingsWithThree",
+				"filterRatingsWithThree sort(asc(Restaurant, true),",
+				"     caseInsensitive: true) ~> sortByRestaurantName",
+				"sortByRestaurantName sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     deletable:false,",
 				"     insertable:true,",
@@ -78,6 +78,7 @@
 				"     format: 'table',",
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true,",
+				"     saveOrder: 1,",
 				"     errorHandlingOption: 'stopOnFirstError',",
 				"     mapColumn(",
 				"          Restaurant,",
@@ -89,7 +90,7 @@
 				"          Pictures,",
 				"          ReviewLength,",
 				"          HasPictures",
-				"     )) ~> sink1"
+				"     )) ~> sinkProcessedRestaurantReviews"
 			]
 		}
 	}
