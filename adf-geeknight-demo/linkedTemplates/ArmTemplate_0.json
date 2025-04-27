@@ -76,6 +76,46 @@
 			"dependsOn": []
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/ds_sink_sqldb')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_az_sqldb",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"schema_name": {
+						"type": "string",
+						"defaultValue": "dbo"
+					},
+					"table_name": {
+						"type": "string",
+						"defaultValue": "sample"
+					}
+				},
+				"folder": {
+					"name": "demo"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [],
+				"typeProperties": {
+					"schema": {
+						"value": "@dataset().schema_name",
+						"type": "Expression"
+					},
+					"table": {
+						"value": "@dataset().table_name",
+						"type": "Expression"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_az_sqldb')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/ds_source_csv')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
@@ -131,43 +171,162 @@
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/ds_sink_sqldb')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
+			"name": "[concat(parameters('factoryName'), '/df_restaurant_reviews')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
 			"apiVersion": "2018-06-01",
 			"properties": {
-				"linkedServiceName": {
-					"referenceName": "ls_az_sqldb",
-					"type": "LinkedServiceReference"
+				"folder": {
+					"name": "demo"
 				},
-				"parameters": {
-					"schema_name": {
-						"type": "string",
-						"defaultValue": "dbo"
-					},
-					"table_name": {
-						"type": "string",
-						"defaultValue": "sample"
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "ds_source_csv",
+								"type": "DatasetReference"
+							},
+							"name": "sourceRestaurantReviews"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "ds_sink_sqldb",
+								"type": "DatasetReference"
+							},
+							"name": "sinkProcessedRestaurantReviews"
+						}
+					],
+					"transformations": [
+						{
+							"name": "selectRequiredColumns"
+						},
+						{
+							"name": "derivedColumn"
+						},
+						{
+							"name": "filterRatingsWithThree"
+						},
+						{
+							"name": "sortByRestaurantName"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          Restaurant as string,",
+						"          Reviewer as string,",
+						"          Review as string,",
+						"          Rating as integer,",
+						"          Metadata as string,",
+						"          Time as string,",
+						"          Pictures as integer,",
+						"          dummy_column as string",
+						"     ),",
+						"     allowSchemaDrift: false,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     multiLineRow: true) ~> sourceRestaurantReviews",
+						"sourceRestaurantReviews select(mapColumn(",
+						"          Restaurant,",
+						"          ReviewerName = Reviewer,",
+						"          Review,",
+						"          Rating,",
+						"          Metadata,",
+						"          Time,",
+						"          Pictures",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> selectRequiredColumns",
+						"selectRequiredColumns derive(ReviewLength = length(Review),",
+						"          HasPictures = case(equals(Pictures,0),'No','Yes')) ~> derivedColumn",
+						"derivedColumn filter(Rating != 3) ~> filterRatingsWithThree",
+						"filterRatingsWithThree sort(asc(Restaurant, true),",
+						"     caseInsensitive: true) ~> sortByRestaurantName",
+						"sortByRestaurantName sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     deletable:false,",
+						"     insertable:true,",
+						"     updateable:false,",
+						"     upsertable:false,",
+						"     format: 'table',",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true,",
+						"     saveOrder: 1,",
+						"     errorHandlingOption: 'stopOnFirstError',",
+						"     mapColumn(",
+						"          Restaurant,",
+						"          ReviewerName,",
+						"          Review,",
+						"          Rating,",
+						"          Metadata,",
+						"          Time,",
+						"          Pictures,",
+						"          ReviewLength,",
+						"          HasPictures",
+						"     )) ~> sinkProcessedRestaurantReviews"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_source_csv')]",
+				"[concat(variables('factoryId'), '/datasets/ds_sink_sqldb')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_process_restaurant_reviews')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "ac_df_restaurant_reviews",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "df_restaurant_reviews",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"sourceRestaurantReviews": {
+										"container_name": "data",
+										"folder_name": "raw_files",
+										"file_name": "restaurant_reviews.csv"
+									},
+									"sinkProcessedRestaurantReviews": {
+										"schema_name": "dbo",
+										"table_name": "RestaurantReviewsProcessed"
+									}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
 					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
 				},
 				"folder": {
 					"name": "demo"
 				},
-				"annotations": [],
-				"type": "AzureSqlTable",
-				"schema": [],
-				"typeProperties": {
-					"schema": {
-						"value": "@dataset().schema_name",
-						"type": "Expression"
-					},
-					"table": {
-						"value": "@dataset().table_name",
-						"type": "Expression"
-					}
-				}
+				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/linkedServices/ls_az_sqldb')]"
+				"[concat(variables('factoryId'), '/dataflows/df_restaurant_reviews')]"
 			]
 		}
 	]
