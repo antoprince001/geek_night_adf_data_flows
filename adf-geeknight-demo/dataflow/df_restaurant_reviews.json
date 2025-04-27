@@ -1,0 +1,96 @@
+{
+	"name": "df_restaurant_reviews",
+	"properties": {
+		"folder": {
+			"name": "demo"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds_source_csv",
+						"type": "DatasetReference"
+					},
+					"name": "sourceRestaurantReviews"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "ds_sink_sqldb",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				}
+			],
+			"transformations": [
+				{
+					"name": "selectRequiredColumns"
+				},
+				{
+					"name": "derivedColumn"
+				},
+				{
+					"name": "filter1"
+				},
+				{
+					"name": "sort1"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          Restaurant as string,",
+				"          Reviewer as string,",
+				"          Review as string,",
+				"          Rating as integer,",
+				"          Metadata as string,",
+				"          Time as string,",
+				"          Pictures as integer,",
+				"          dummy_column as string",
+				"     ),",
+				"     allowSchemaDrift: false,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     multiLineRow: true) ~> sourceRestaurantReviews",
+				"sourceRestaurantReviews select(mapColumn(",
+				"          Restaurant,",
+				"          ReviewerName = Reviewer,",
+				"          Review,",
+				"          Rating,",
+				"          Metadata,",
+				"          Time,",
+				"          Pictures",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> selectRequiredColumns",
+				"selectRequiredColumns derive(ReviewLength = length(Review),",
+				"          HasPictures = case(equals(Pictures,0),'No','Yes')) ~> derivedColumn",
+				"derivedColumn filter(Rating != 3) ~> filter1",
+				"filter1 sort(asc(Restaurant, true),",
+				"     caseInsensitive: true) ~> sort1",
+				"sort1 sink(allowSchemaDrift: false,",
+				"     validateSchema: false,",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError',",
+				"     mapColumn(",
+				"          Restaurant,",
+				"          ReviewerName,",
+				"          Review,",
+				"          Rating,",
+				"          Metadata,",
+				"          Time,",
+				"          Pictures,",
+				"          ReviewLength,",
+				"          HasPictures",
+				"     )) ~> sink1"
+			]
+		}
+	}
+}
