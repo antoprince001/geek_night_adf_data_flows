@@ -1,0 +1,46 @@
+{
+	"name": "pl_process_restaurant_reviews",
+	"properties": {
+		"activities": [
+			{
+				"name": "ac_df_restaurant_reviews",
+				"type": "ExecuteDataFlow",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataflow": {
+						"referenceName": "df_restaurant_reviews",
+						"type": "DataFlowReference",
+						"datasetParameters": {
+							"sourceRestaurantReviews": {
+								"container_name": "data",
+								"folder_name": "raw_files",
+								"file_name": "restaurant_reviews.csv"
+							},
+							"sinkProcessedRestaurantReviews": {
+								"schema_name": "dbo",
+								"table_name": "sample"
+							}
+						}
+					},
+					"compute": {
+						"coreCount": 8,
+						"computeType": "General"
+					},
+					"traceLevel": "Fine"
+				}
+			}
+		],
+		"folder": {
+			"name": "demo"
+		},
+		"annotations": []
+	}
+}
