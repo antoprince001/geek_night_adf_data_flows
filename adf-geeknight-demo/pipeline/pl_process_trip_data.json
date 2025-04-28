@@ -26,17 +26,17 @@
 							"sourceTripData": {
 								"container_name": "data",
 								"folder_name": "raw_files",
-								"file_name": "restaurant_reviews.csv"
+								"file_name": "trip_data.csv"
 							},
 							"sourceDriverInformation": {
 								"container_name": "data",
 								"folder_name": "raw_files",
-								"file_name": "restaurant_reviews.csv"
+								"file_name": "driver_information.csv"
 							},
 							"sourceVehicleInformation": {
 								"container_name": "data",
 								"folder_name": "raw_files",
-								"file_name": "restaurant_reviews.csv"
+								"file_name": "vehicle_information.csv"
 							}
 						}
 					},
