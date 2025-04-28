@@ -1,0 +1,158 @@
+{
+	"name": "df_trip_data",
+	"properties": {
+		"folder": {
+			"name": "demo2"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds_source_csv",
+						"type": "DatasetReference"
+					},
+					"name": "sourceTripData"
+				},
+				{
+					"dataset": {
+						"referenceName": "ds_source_csv",
+						"type": "DatasetReference"
+					},
+					"name": "sourceDriverInformation"
+				},
+				{
+					"dataset": {
+						"referenceName": "ds_source_csv",
+						"type": "DatasetReference"
+					},
+					"name": "sourceVehicleInformation"
+				}
+			],
+			"sinks": [
+				{
+					"linkedService": {
+						"referenceName": "ls_adls_storage",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sinkJsonFile"
+				},
+				{
+					"linkedService": {
+						"referenceName": "ls_adls_storage",
+						"type": "LinkedServiceReference"
+					},
+					"name": "sinkParquetFile"
+				}
+			],
+			"transformations": [
+				{
+					"name": "joinTripWithVehicleData"
+				},
+				{
+					"name": "selectRequiredColumns"
+				},
+				{
+					"name": "split1"
+				},
+				{
+					"name": "aggregateAvgRatingByVehicleType"
+				},
+				{
+					"name": "joinDriverInformation"
+				}
+			],
+			"scriptLines": [
+				"parameters{",
+				"     dest_container_name as string ('data'),",
+				"     dest_folder_name as string ('processed')",
+				"}",
+				"source(output(",
+				"          TripID as short,",
+				"          DriverID as string,",
+				"          VehicleID as string,",
+				"          PickUpLocation as string,",
+				"          DropOffLocation as string,",
+				"          StartTime as timestamp,",
+				"          EndTime as timestamp,",
+				"          Distance as short,",
+				"          Fare as short,",
+				"          Rating as short",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     multiLineRow: true) ~> sourceTripData",
+				"source(output(",
+				"          DriverID as string,",
+				"          Name as string,",
+				"          Age as short",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> sourceDriverInformation",
+				"source(output(",
+				"          VehicleID as string,",
+				"          VehicleType as string,",
+				"          VehicleRegistration as string,",
+				"          CityID as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> sourceVehicleInformation",
+				"sourceTripData, sourceVehicleInformation join(sourceTripData@VehicleID == sourceVehicleInformation@VehicleID,",
+				"     joinType:'inner',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> joinTripWithVehicleData",
+				"joinTripWithVehicleData select(mapColumn(",
+				"          TripID,",
+				"          DriverID,",
+				"          VehicleID = sourceTripData@VehicleID,",
+				"          PickUpLocation,",
+				"          DropOffLocation,",
+				"          StartTime,",
+				"          EndTime,",
+				"          Distance,",
+				"          Fare,",
+				"          Rating,",
+				"          VehicleType,",
+				"          VehicleRegistration,",
+				"          CityID",
+				"     ),",
+				"     skipDuplicateMapInputs: false,",
+				"     skipDuplicateMapOutputs: true) ~> selectRequiredColumns",
+				"selectRequiredColumns split(Distance < 12,",
+				"     disjoint: false) ~> split1@(TripLessThanTenKms, TripMoreThanTenKms)",
+				"split1@TripLessThanTenKms aggregate(groupBy(VehicleType),",
+				"     AvgRating = avg(Rating)) ~> aggregateAvgRatingByVehicleType",
+				"split1@TripMoreThanTenKms, sourceDriverInformation join(split1@TripMoreThanTenKms@DriverID == sourceDriverInformation@DriverID,",
+				"     joinType:'inner',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> joinDriverInformation",
+				"aggregateAvgRatingByVehicleType sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'json',",
+				"     fileSystem: ($dest_container_name),",
+				"     folderPath: (concat($dest_folder_name, toString(currentDate('IST')),'JSON')),",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> sinkJsonFile",
+				"joinDriverInformation sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'parquet',",
+				"     fileSystem: ($dest_container_name),",
+				"     folderPath: (concat($dest_folder_name, toString(currentDate('IST')),'PARQUET')),",
+				"     compressionCodec: 'snappy',",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> sinkParquetFile"
+			]
+		}
+	}
+}
