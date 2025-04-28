@@ -37,6 +37,62 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/pl_process_restaurant_reviews')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "ac_df_restaurant_reviews",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "df_restaurant_reviews",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"sourceRestaurantReviews": {
+										"container_name": "data",
+										"folder_name": "raw_files",
+										"file_name": "restaurant_reviews.csv"
+									},
+									"sinkProcessedRestaurantReviews": {
+										"schema_name": "dbo",
+										"table_name": "RestaurantReviewsProcessed"
+									}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"folder": {
+					"name": "demo"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/df_restaurant_reviews')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/ds_sink_sqldb')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
@@ -240,8 +296,7 @@
 						"     skipDuplicateMapOutputs: true) ~> selectRequiredColumns",
 						"selectRequiredColumns derive(ReviewLength = length(Review),",
 						"          HasPictures = case(equals(Pictures,0),'No','Yes'),",
-						"          Time = toTimestamp(concat(Time, ':0'), 'M/d/yyyy H:mm:s')",
-						") ~> derivedColumn",
+						"          Time = toTimestamp(concat(Time, ':0'), 'M/d/yyyy H:mm:s')) ~> derivedColumn",
 						"derivedColumn filter(Rating != 3) ~> filterRatingsWithThree",
 						"filterRatingsWithThree sort(asc(Restaurant, true),",
 						"     caseInsensitive: true) ~> sortByRestaurantName",
@@ -276,13 +331,177 @@
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/pl_process_restaurant_reviews')]",
+			"name": "[concat(parameters('factoryName'), '/df_trip_data')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"folder": {
+					"name": "demo2"
+				},
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "ds_source_csv",
+								"type": "DatasetReference"
+							},
+							"name": "sourceTripData"
+						},
+						{
+							"dataset": {
+								"referenceName": "ds_source_csv",
+								"type": "DatasetReference"
+							},
+							"name": "sourceDriverInformation"
+						},
+						{
+							"dataset": {
+								"referenceName": "ds_source_csv",
+								"type": "DatasetReference"
+							},
+							"name": "sourceVehicleInformation"
+						}
+					],
+					"sinks": [
+						{
+							"linkedService": {
+								"referenceName": "ls_adls_storage",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sinkJsonFile"
+						},
+						{
+							"linkedService": {
+								"referenceName": "ls_adls_storage",
+								"type": "LinkedServiceReference"
+							},
+							"name": "sinkParquetFile"
+						}
+					],
+					"transformations": [
+						{
+							"name": "joinTripWithVehicleData"
+						},
+						{
+							"name": "selectRequiredColumns"
+						},
+						{
+							"name": "split1"
+						},
+						{
+							"name": "aggregateAvgRatingByVehicleType"
+						},
+						{
+							"name": "joinDriverInformation"
+						}
+					],
+					"scriptLines": [
+						"parameters{",
+						"     dest_container_name as string ('data'),",
+						"     dest_folder_name as string ('processed')",
+						"}",
+						"source(output(",
+						"          TripID as short,",
+						"          DriverID as string,",
+						"          VehicleID as string,",
+						"          PickUpLocation as string,",
+						"          DropOffLocation as string,",
+						"          StartTime as timestamp,",
+						"          EndTime as timestamp,",
+						"          Distance as short,",
+						"          Fare as short,",
+						"          Rating as short",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false,",
+						"     multiLineRow: true) ~> sourceTripData",
+						"source(output(",
+						"          DriverID as string,",
+						"          Name as string,",
+						"          Age as short",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> sourceDriverInformation",
+						"source(output(",
+						"          VehicleID as string,",
+						"          VehicleType as string,",
+						"          VehicleRegistration as string,",
+						"          CityID as string",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> sourceVehicleInformation",
+						"sourceTripData, sourceVehicleInformation join(sourceTripData@VehicleID == sourceVehicleInformation@VehicleID,",
+						"     joinType:'inner',",
+						"     matchType:'exact',",
+						"     ignoreSpaces: false,",
+						"     broadcast: 'auto')~> joinTripWithVehicleData",
+						"joinTripWithVehicleData select(mapColumn(",
+						"          TripID,",
+						"          DriverID,",
+						"          VehicleID = sourceTripData@VehicleID,",
+						"          PickUpLocation,",
+						"          DropOffLocation,",
+						"          StartTime,",
+						"          EndTime,",
+						"          Distance,",
+						"          Fare,",
+						"          Rating,",
+						"          VehicleType,",
+						"          VehicleRegistration,",
+						"          CityID",
+						"     ),",
+						"     skipDuplicateMapInputs: false,",
+						"     skipDuplicateMapOutputs: true) ~> selectRequiredColumns",
+						"selectRequiredColumns split(Distance < 12,",
+						"     disjoint: false) ~> split1@(TripLessThanTenKms, TripMoreThanTenKms)",
+						"split1@TripLessThanTenKms aggregate(groupBy(VehicleType),",
+						"     AvgRating = avg(Rating)) ~> aggregateAvgRatingByVehicleType",
+						"split1@TripMoreThanTenKms, sourceDriverInformation join(split1@TripMoreThanTenKms@DriverID == sourceDriverInformation@DriverID,",
+						"     joinType:'inner',",
+						"     matchType:'exact',",
+						"     ignoreSpaces: false,",
+						"     broadcast: 'auto')~> joinDriverInformation",
+						"aggregateAvgRatingByVehicleType sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'json',",
+						"     fileSystem: ($dest_container_name),",
+						"     folderPath: (concat($dest_folder_name, toString(currentDate('IST')),'JSON')),",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> sinkJsonFile",
+						"joinDriverInformation sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     format: 'parquet',",
+						"     fileSystem: ($dest_container_name),",
+						"     folderPath: (concat($dest_folder_name, toString(currentDate('IST')),'PARQUET')),",
+						"     compressionCodec: 'snappy',",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> sinkParquetFile"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_source_csv')]",
+				"[concat(variables('factoryId'), '/linkedServices/ls_adls_storage')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_process_trip_data')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
 			"properties": {
 				"activities": [
 					{
-						"name": "ac_df_restaurant_reviews",
+						"name": "ac_df_trip_data",
 						"type": "ExecuteDataFlow",
 						"dependsOn": [],
 						"policy": {
@@ -295,19 +514,30 @@
 						"userProperties": [],
 						"typeProperties": {
 							"dataflow": {
-								"referenceName": "df_restaurant_reviews",
+								"referenceName": "df_trip_data",
 								"type": "DataFlowReference",
-								"parameters": {},
+								"parameters": {
+									"dest_container_name": "'data'",
+									"dest_folder_name": "'processed'"
+								},
 								"datasetParameters": {
-									"sourceRestaurantReviews": {
+									"sourceTripData": {
 										"container_name": "data",
 										"folder_name": "raw_files",
 										"file_name": "restaurant_reviews.csv"
 									},
-									"sinkProcessedRestaurantReviews": {
-										"schema_name": "dbo",
-										"table_name": "RestaurantReviewsProcessed"
-									}
+									"sourceDriverInformation": {
+										"container_name": "data",
+										"folder_name": "raw_files",
+										"file_name": "restaurant_reviews.csv"
+									},
+									"sourceVehicleInformation": {
+										"container_name": "data",
+										"folder_name": "raw_files",
+										"file_name": "restaurant_reviews.csv"
+									},
+									"sinkJsonFile": {},
+									"sinkParquetFile": {}
 								}
 							},
 							"staging": {},
@@ -323,12 +553,12 @@
 					"elapsedTimeMetric": {}
 				},
 				"folder": {
-					"name": "demo"
+					"name": "demo2"
 				},
 				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/dataflows/df_restaurant_reviews')]"
+				"[concat(variables('factoryId'), '/dataflows/df_trip_data')]"
 			]
 		}
 	]
