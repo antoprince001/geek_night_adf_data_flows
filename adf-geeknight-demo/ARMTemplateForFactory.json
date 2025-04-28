@@ -469,23 +469,43 @@
 						"     validateSchema: false,",
 						"     format: 'json',",
 						"     fileSystem: ($dest_container_name),",
-						"     folderPath: (concat($dest_folder_name, toString(currentDate('IST')),'JSON')),",
+						"     folderPath: (concat(toString(currentDate('IST')),'/',$dest_folder_name,'/JSON')),",
 						"     umask: 0022,",
 						"     preCommands: [],",
 						"     postCommands: [],",
 						"     skipDuplicateMapInputs: true,",
-						"     skipDuplicateMapOutputs: true) ~> sinkJsonFile",
+						"     skipDuplicateMapOutputs: true,",
+						"     mapColumn(",
+						"          VehicleType,",
+						"          AvgRating",
+						"     )) ~> sinkJsonFile",
 						"joinDriverInformation sink(allowSchemaDrift: true,",
 						"     validateSchema: false,",
 						"     format: 'parquet',",
 						"     fileSystem: ($dest_container_name),",
-						"     folderPath: (concat($dest_folder_name, toString(currentDate('IST')),'PARQUET')),",
+						"     folderPath: (concat(toString(currentDate('IST')),'/',$dest_folder_name,'/PARQUET')),",
 						"     compressionCodec: 'snappy',",
 						"     umask: 0022,",
 						"     preCommands: [],",
 						"     postCommands: [],",
-						"     skipDuplicateMapInputs: true,",
-						"     skipDuplicateMapOutputs: true) ~> sinkParquetFile"
+						"     skipDuplicateMapOutputs: true,",
+						"     mapColumn(",
+						"          TripID,",
+						"          DriverID = split1@TripMoreThanTenKms@DriverID,",
+						"          VehicleID,",
+						"          PickUpLocation,",
+						"          DropOffLocation,",
+						"          StartTime,",
+						"          EndTime,",
+						"          Distance,",
+						"          Fare,",
+						"          Rating,",
+						"          VehicleType,",
+						"          VehicleRegistration,",
+						"          CityID,",
+						"          Name,",
+						"          Age",
+						"     )) ~> sinkParquetFile"
 					]
 				}
 			},
@@ -524,17 +544,17 @@
 									"sourceTripData": {
 										"container_name": "data",
 										"folder_name": "raw_files",
-										"file_name": "restaurant_reviews.csv"
+										"file_name": "trip_data.csv"
 									},
 									"sourceDriverInformation": {
 										"container_name": "data",
 										"folder_name": "raw_files",
-										"file_name": "restaurant_reviews.csv"
+										"file_name": "driver_information.csv"
 									},
 									"sourceVehicleInformation": {
 										"container_name": "data",
 										"folder_name": "raw_files",
-										"file_name": "restaurant_reviews.csv"
+										"file_name": "vehicle_information.csv"
 									},
 									"sinkJsonFile": {},
 									"sinkParquetFile": {}
