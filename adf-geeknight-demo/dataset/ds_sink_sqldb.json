@@ -12,7 +12,7 @@
 			},
 			"table_name": {
 				"type": "string",
-				"defaultValue": "sample"
+				"defaultValue": "RestaurantReviewsProcessedDemo"
 			}
 		},
 		"folder": {
