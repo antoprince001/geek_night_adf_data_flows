@@ -1,0 +1,69 @@
+{
+	"name": "df_employee_information",
+	"properties": {
+		"folder": {
+			"name": "demo3"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds_source_csv",
+						"type": "DatasetReference"
+					},
+					"name": "sourceEmployeeInformation"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "ds_sink_sqldb",
+						"type": "DatasetReference"
+					},
+					"name": "sinkUpdatedEmployeeInformation"
+				}
+			],
+			"transformations": [
+				{
+					"name": "alterRowWithEndDate"
+				},
+				{
+					"name": "derivedColumnForStatus"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          EmpID as integer,",
+				"          Region as string,",
+				"          FunctionEmp as string,",
+				"          LevelEmp as string,",
+				"          RoleEmp as string,",
+				"          StartDate as date,",
+				"          EndDate as date,",
+				"          Status as boolean",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> sourceEmployeeInformation",
+				"derivedColumnForStatus alterRow(updateIf(!isNull(EndDate))) ~> alterRowWithEndDate",
+				"sourceEmployeeInformation derive(Status = isNull(EndDate)) ~> derivedColumnForStatus",
+				"alterRowWithEndDate sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     deletable:false,",
+				"     insertable:false,",
+				"     updateable:true,",
+				"     upsertable:false,",
+				"     keys:['EmpID'],",
+				"     format: 'table',",
+				"     postSQLs:['SELECT * FROM dbo.EmployeeInformation;\\n'],",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError',",
+				"     mapColumn(",
+				"          EmpID,",
+				"          Status",
+				"     )) ~> sinkUpdatedEmployeeInformation"
+			]
+		}
+	}
+}

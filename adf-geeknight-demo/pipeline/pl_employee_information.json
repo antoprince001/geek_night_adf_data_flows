@@ -1,0 +1,46 @@
+{
+	"name": "pl_employee_information",
+	"properties": {
+		"activities": [
+			{
+				"name": "ac_df_employee_information",
+				"type": "ExecuteDataFlow",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataflow": {
+						"referenceName": "df_employee_information",
+						"type": "DataFlowReference",
+						"datasetParameters": {
+							"sourceEmployeeInformation": {
+								"container_name": "data",
+								"folder_name": "raw_files",
+								"file_name": "EmployeeInformation.csv"
+							},
+							"sinkUpdatedEmployeeInformation": {
+								"schema_name": "dbo",
+								"table_name": "EmployeeInformation"
+							}
+						}
+					},
+					"compute": {
+						"coreCount": 8,
+						"computeType": "General"
+					},
+					"traceLevel": "Fine"
+				}
+			}
+		],
+		"folder": {
+			"name": "demo3"
+		},
+		"annotations": []
+	}
+}
