@@ -56,7 +56,6 @@
 				"     upsertable:false,",
 				"     keys:['EmpID'],",
 				"     format: 'table',",
-				"     postSQLs:['SELECT * FROM dbo.EmployeeInformation;\\n'],",
 				"     skipDuplicateMapOutputs: true,",
 				"     errorHandlingOption: 'stopOnFirstError',",
 				"     mapColumn(",
