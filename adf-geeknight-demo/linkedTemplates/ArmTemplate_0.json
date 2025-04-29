@@ -459,6 +459,81 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/df_employee_information')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"folder": {
+					"name": "demo3"
+				},
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "ds_source_csv",
+								"type": "DatasetReference"
+							},
+							"name": "sourceEmployeeInformation"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "ds_sink_sqldb",
+								"type": "DatasetReference"
+							},
+							"name": "sinkUpdatedEmployeeInformation"
+						}
+					],
+					"transformations": [
+						{
+							"name": "alterRowWithEndDate"
+						},
+						{
+							"name": "derivedColumnForStatus"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          EmpID as integer,",
+						"          Region as string,",
+						"          FunctionEmp as string,",
+						"          LevelEmp as string,",
+						"          RoleEmp as string,",
+						"          StartDate as date,",
+						"          EndDate as date,",
+						"          Status as boolean",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> sourceEmployeeInformation",
+						"derivedColumnForStatus alterRow(updateIf(!isNull(EndDate))) ~> alterRowWithEndDate",
+						"sourceEmployeeInformation derive(Status = isNull(EndDate)) ~> derivedColumnForStatus",
+						"alterRowWithEndDate sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     deletable:false,",
+						"     insertable:false,",
+						"     updateable:true,",
+						"     upsertable:false,",
+						"     keys:['EmpID'],",
+						"     format: 'table',",
+						"     postSQLs:['SELECT * FROM dbo.EmployeeInformation;\\n'],",
+						"     skipDuplicateMapOutputs: true,",
+						"     errorHandlingOption: 'stopOnFirstError',",
+						"     mapColumn(",
+						"          EmpID,",
+						"          Status",
+						"     )) ~> sinkUpdatedEmployeeInformation"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_source_csv')]",
+				"[concat(variables('factoryId'), '/datasets/ds_sink_sqldb')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/pl_process_restaurant_reviews')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -579,6 +654,62 @@
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/dataflows/df_trip_data')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_employee_information')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "ac_df_employee_information",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "df_employee_information",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"sourceEmployeeInformation": {
+										"container_name": "data",
+										"folder_name": "raw_files",
+										"file_name": "EmployeeInformation.csv"
+									},
+									"sinkUpdatedEmployeeInformation": {
+										"schema_name": "dbo",
+										"table_name": "EmployeeInformation"
+									}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"folder": {
+					"name": "demo3"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/df_employee_information')]"
 			]
 		}
 	]
