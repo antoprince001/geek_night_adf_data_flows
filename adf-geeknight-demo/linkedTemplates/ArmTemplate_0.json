@@ -518,7 +518,7 @@
 						"     upsertable:false,",
 						"     keys:['EmpID'],",
 						"     format: 'table',",
-						"     postSQLs:['SELECT * FROM dbo.EmployeeInformation;\\n'],",
+						"     postSQLs:['INSERT INTO dbo.Audit (TableName) VALUES (\\'dbo.EmployeeInformation\\');'],",
 						"     skipDuplicateMapOutputs: true,",
 						"     errorHandlingOption: 'stopOnFirstError',",
 						"     mapColumn(",
